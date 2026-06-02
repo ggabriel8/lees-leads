@@ -6,7 +6,8 @@ const { Pool } = require('pg');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const INSTANTLY_API_KEY = '>>REMOVED_USE_ENV_VAR==';
+const INSTANTLY_API_KEY = process.env.INSTANTLY_API_KEY;
+if (!INSTANTLY_API_KEY) console.warn('[WARN] INSTANTLY_API_KEY not set — Instantly polling/webhooks will not authenticate');
 const POLL_INTERVAL_MS = 5 * 60 * 1000;
 
 const pool = new Pool({
