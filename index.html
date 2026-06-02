@@ -389,7 +389,7 @@ function renderDetail(l) {
           <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:4px">
             <input type="datetime-local" class="edit-field" style="border:1px solid var(--border);border-radius:6px;padding:6px 8px;max-width:220px;font-weight:500" value="${l.followUpAt ? toLocalInput(l.followUpAt) : ''}" onchange="setFollowUpDate('${l.id}',this.value)">
             <button class="btn btn-ghost snooze-chip" onclick="snoozeFollowUp('${l.id}',1)">Tomorrow</button>
-            <button class="btn btn-ghost snooze-chip" onclick="snoozeFollowUp('${l.id}',3)">+3 days</button>
+            <button class="btn btn-ghost snooze-chip" onclick="snoozeFollowUp('${l.id}',2)">+2 days</button>
             <button class="btn btn-ghost snooze-chip" onclick="snoozeFollowUp('${l.id}',7)">+1 week</button>
             ${l.followUpAt ? `<button class="btn btn-ghost snooze-chip" onclick="clearFollowUp('${l.id}')" style="color:var(--red)">Clear</button>` : ''}
           </div>
