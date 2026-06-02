@@ -249,7 +249,8 @@ function setTab(tab) { activeTab = tab; renderFilterTabs(); renderLeadList(docum
 function renderLeadList(filter = '') {
   const list = document.getElementById('leadList');
   const filtered = leads.filter(l => {
-    const matchTab = activeTab === 'all' || l.status === activeTab;
+    const isAction = l.status==='new'||(l.followUpAt&&l.followUpAt<=Date.now()&&l.status!=='closed');
+    const matchTab = (activeTab==='all'&&l.status!=='closed')||(activeTab==='action'&&isAction)||(activeTab!=='all'&&activeTab!=='action'&&l.status===activeTab);
     const matchSearch = l.name.toLowerCase().includes(filter.toLowerCase()) || (l.email||'').includes(filter) || (l.phone||'').includes(filter);
     return matchTab && matchSearch;
   });
