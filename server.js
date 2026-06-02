@@ -24,7 +24,7 @@ async function initDB() {
 }
 
 async function readLeads() {
-  const r = await pool.query('SELECT data FROM leads ORDER BY COALESCE((data->>'createdAt')::bigint, 0) DESC');
+  const r = await pool.query(`SELECT data FROM leads ORDER BY COALESCE((data->>'createdAt')::bigint, 0) DESC`);
   return r.rows.map(r => r.data);
 }
 
