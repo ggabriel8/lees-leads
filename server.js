@@ -45,6 +45,13 @@ function isDuplicate(leads, email) {
   return leads.some(l => l.email && l.email.toLowerCase() === email.toLowerCase());
 }
 
+// Strip emails that contain unresolved template variables like {l.property}
+function sanitizeEmail(email) {
+  if (!email) return '';
+  if (/[{}]/.test(email)) return '';
+  return email;
+}
+
 app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
@@ -84,7 +91,7 @@ app.patch('/api/leads/:id', async (req, res) => {
 app.post('/webhook/instantly', async (req, res) => {
   try {
     const data = req.body;
-    const email = data.email || data.lead_email || (data.contact && data.contact.email) || '';
+    const email = sanitizeEmail(data.email || data.lead_email || (data.contact && data.contact.email) || '');
     const firstName = data.first_name || data.firstName || (data.contact && data.contact.first_name) || '';
     const lastName = data.last_name || data.lastName || (data.contact && data.contact.last_name) || '';
     const name = (firstName + ' ' + lastName).trim() || email.split('@')[0] || 'Unknown';
@@ -131,7 +138,7 @@ async function pollInstantly() {
     const leads = await readLeads();
     let added = 0;
     for (const item of items) {
-      const email = item.lead || item.from_address_email || '';
+      const email = sanitizeEmail(item.lead || item.from_address_email || '');
       if (!email || isDuplicate(leads, email)) continue;
       let name = email.split('@')[0];
       try {
@@ -167,6 +174,23 @@ app.delete('/api/leads/:id', async (req, res) => {
   try {
     await pool.query('DELETE FROM leads WHERE id=$1', [req.params.id]);
     res.json({ status: 'deleted' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// One-time cleanup: clear bad emails containing template variables like {l.property}
+app.post('/api/cleanup-emails', async (req, res) => {
+  try {
+    const leads = await readLeads();
+    let fixed = 0;
+    for (const l of leads) {
+      if (l.email && /[{}]/.test(l.email)) {
+        l.email = '';
+        await upsertLead(l);
+        fixed++;
+        console.log('[Cleanup] Cleared bad email for lead:', l.id, l.name);
+      }
+    }
+    res.json({ status: 'ok', fixed });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
