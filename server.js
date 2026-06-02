@@ -1,29 +1,49 @@
 const express = require('express');
 const cors = require('cors');
-const fs = require('fs');
-const path = require('path');
 const https = require('https');
+const { Pool } = require('pg');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const LEADS_FILE = path.join(__dirname, 'leads.json');
-
-// ── Instantly API config ──────────────────────────────────────────────────────
 const INSTANTLY_API_KEY = 'MTdiOGUzYjMtOTIzZC00NDI3LWJlM2QtODMxMjAxNTNkNTllOlJPTW5HRWNnS3dTRA==';
-const POLL_INTERVAL_MS = 5 * 60 * 1000; // every 5 minutes
+const POLL_INTERVAL_MS = 5 * 60 * 1000;
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(__dirname)); // serves index.html (the CRM)
+app.use(express.static(__dirname));
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-function readLeads() {
-  try { return JSON.parse(fs.readFileSync(LEADS_FILE, 'utf8')); }
-  catch { return []; }
+async function initDB() {
+  await pool.query('CREATE TABLE IF NOT EXISTS leads (id TEXT PRIMARY KEY, data JSONB NOT NULL)');
+  console.log('[DB] Table ready');
+  const { rows } = await pool.query('SELECT COUNT(*) FROM leads');
+  if (parseInt(rows[0].count) === 0) await seedLeads();
 }
 
-function writeLeads(leads) {
-  fs.writeFileSync(LEADS_FILE, JSON.stringify(leads, null, 2));
+async function seedLeads() {
+  const fs = require('fs'), path = require('path');
+  const file = path.join(__dirname, 'leads.json');
+  if (!fs.existsSync(file)) return;
+  try {
+    const leads = JSON.parse(fs.readFileSync(file, 'utf8'));
+    for (const lead of leads)
+      await pool.query('INSERT INTO leads (id, data) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING', [lead.id, JSON.stringify(lead)]);
+    console.log('[DB] Seeded ' + leads.length + ' leads');
+  } catch(e) { console.error('[DB] Seed error:', e.message); }
+}
+
+async function readLeads() {
+  const { rows } = await pool.query("SELECT data FROM leads ORDER BY (data->>'createdAt')::bigint DESC");
+  return rows.map(r => r.data);
+}
+
+async function updateLead(id, patch) {
+  const { rows } = await pool.query('SELECT data FROM leads WHERE id = $1', [id]);
+  if (!rows.length) return null;
+  const updated = { ...rows[0].data, ...patch };
+  await pool.query('UPDATE leads SET data = $1 WHERE id = $2', [JSON.stringify(updated), id]);
+  return updated;
 }
 
 function isDuplicate(leads, email) {
@@ -31,137 +51,36 @@ function isDuplicate(leads, email) {
   return leads.some(l => l.email && l.email.toLowerCase() === email.toLowerCase());
 }
 
-// ── API: Get all leads ────────────────────────────────────────────────────────
-app.get('/api/leads', (req, res) => {
-  res.json(readLeads());
+app.get('/api/leads', async (req, res) => {
+  try { res.json(await readLeads()); } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── API: Create lead manually ─────────────────────────────────────────────────
-app.post('/api/leads', (req, res) => {
-  const leads = readLeads();
-  const { name, email, phone, property, source, status } = req.body;
-  if (!name) return res.status(400).json({ error: 'Name required' });
-  if (isDuplicate(leads, email)) return res.status(409).json({ error: 'Duplicate email' });
-
-  const lead = {
-    id: 'lead_' + Date.now(),
-    name,
-    email: email || '',
-    phone: phone || '',
-    property: property || '',
-    source: source || 'Manual',
-    status: status || 'new',
-    createdAt: Date.now(),
-    calls: [],
-    notes: [],
-    followUpAt: null,
-    emailSentAt: null,
-  };
-  leads.unshift(lead);
-  writeLeads(leads);
-  res.json(lead);
+app.post('/api/leads', async (req, res) => {
+  try {
+    const leads = await readLeads();
+    const { name, email, phone, property, source, status } = req.body;
+    if (!name) return res.status(400).json({ error: 'Name required' });
+    if (isDuplicate(leads, email)) return res.status(409).json({ error: 'Duplicate email' });
+    const lead = { id: 'lead_' + Date.now(), name, email: email||'', phone: phone||'', property: property||'', source: source||'Manual', status: status||'new', createdAt: Date.now(), calls: [], notes: [], followUpAt: null, emailSentAt: null };
+    await pool.query('INSERT INTO leads (id, data) VALUES ($1, $2)', [lead.id, JSON.stringify(lead)]);
+    res.json(lead);
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── API: Update lead ──────────────────────────────────────────────────────────
-app.patch('/api/leads/:id', (req, res) => {
-  const leads = readLeads();
-  const idx = leads.findIndex(l => l.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: 'Not found' });
-  leads[idx] = { ...leads[idx], ...req.body };
-  writeLeads(leads);
-  res.json(leads[idx]);
+app.patch('/api/leads/:id', async (req, res) => {
+  try {
+    const updated = await updateLead(req.params.id, req.body);
+    if (!updated) return res.status(404).json({ error: 'Not found' });
+    res.json(updated);
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── INSTANTLY WEBHOOK ─────────────────────────────────────────────────────────
-// Set this URL in Instantly: http://YOUR_SERVER/webhook/instantly
-// (use ngrok for local: ngrok http 3000)
-app.post('/webhook/instantly', (req, res) => {
-  console.log('[Instantly Webhook]', JSON.stringify(req.body, null, 2));
-
-  const data = req.body;
-
-  // Instantly webhook payload shapes vary — handle both flat and nested
-  const email =
-    data.email ||
-    data.lead_email ||
-    data.contact?.email ||
-    data.prospect?.email || '';
-
-  const firstName =
-    data.first_name ||
-    data.firstName ||
-    data.contact?.first_name ||
-    data.prospect?.first_name || '';
-
-  const lastName =
-    data.last_name ||
-    data.lastName ||
-    data.contact?.last_name ||
-    data.prospect?.last_name || '';
-
-  const name = (firstName + ' ' + lastName).trim() || email.split('@')[0] || 'Unknown';
-
-  const phone =
-    data.phone ||
-    data.contact?.phone ||
-    data.prospect?.phone || '';
-
-  const property =
-    data.city ||
-    data.location ||
-    data.property ||
-    data.contact?.city || '';
-
-  const replyText =
-    data.reply_text ||
-    data.message ||
-    data.body ||
-    data.email_body || '';
-
-  const leads = readLeads();
-
-  if (isDuplicate(leads, email)) {
-    console.log(`[Instantly] Duplicate skipped: ${email}`);
-    return res.json({ status: 'duplicate', message: 'Lead already exists' });
-  }
-
-  const lead = {
-    id: 'lead_instantly_' + Date.now(),
-    name,
-    email,
-    phone,
-    property,
-    source: 'Instantly',
-    status: 'new',
-    createdAt: Date.now(),
-    calls: [],
-    notes: replyText ? [{ at: Date.now(), text: replyText }] : [],
-    followUpAt: null,
-    emailSentAt: null,
-  };
-
-  leads.unshift(lead);
-  writeLeads(leads);
-
-  console.log(`[Instantly] ✓ Lead added: ${name} <${email}>`);
-  res.json({ status: 'ok', lead });
-});
-
-// ── Instantly API poller ──────────────────────────────────────────────────────
 function instantlyFetch(endpoint) {
   return new Promise((resolve, reject) => {
-    const options = {
-      hostname: 'api.instantly.ai',
-      path: `/api/v2/${endpoint}`,
-      method: 'GET',
-      headers: { 'Authorization': `Bearer ${INSTANTLY_API_KEY}`, 'Content-Type': 'application/json' }
-    };
-    const req = https.request(options, res => {
+    const req = https.request({ hostname: 'api.instantly.ai', path: '/api/v2/' + endpoint, method: 'GET', headers: { 'Authorization': 'Bearer ' + INSTANTLY_API_KEY } }, res => {
       let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => {
-        try { resolve(JSON.parse(data)); } catch { resolve({}); }
-      });
+      res.on('data', c => data += c);
+      res.on('end', () => { try { resolve(JSON.parse(data)); } catch { resolve({}); } });
     });
     req.on('error', reject);
     req.end();
@@ -170,68 +89,36 @@ function instantlyFetch(endpoint) {
 
 async function pollInstantly() {
   try {
-    console.log('[Instantly Poll] Checking for new replies…');
-    // Use the correct Unibox emails endpoint, filtering for received (replied) emails
-    // ue_type=2 means received, email_type=received filters for inbound replies
-    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(); // last 7 days
-    const result = await instantlyFetch(`emails?email_type=received&limit=100&sort_order=desc&min_timestamp_created=${encodeURIComponent(since)}`);
-    console.log('[Instantly Poll] Raw response:', JSON.stringify(result).slice(0, 500));
+    console.log('[Instantly Poll] Checking...');
+    const since = new Date(Date.now() - 7*24*60*60*1000).toISOString();
+    const result = await instantlyFetch('emails?email_type=received&limit=100&sort_order=desc&min_timestamp_created=' + encodeURIComponent(since));
     const items = result.items || [];
-
-    if (!items.length) {
-      console.log('[Instantly Poll] No new replies found.');
-      return;
-    }
-
-    const leads = readLeads();
+    if (!items.length) { console.log('[Instantly Poll] No new replies.'); return; }
+    const leads = await readLeads();
     let added = 0;
-
     for (const item of items) {
-      // Instantly email object: lead = lead email, body.text = email body
       const email = item.lead || item.from_address_email || '';
       if (!email || isDuplicate(leads, email)) continue;
-
-      // Look up real name from Instantly leads API
-      let name = email.split("@")[0];
+      let name = email.split('@')[0];
       try {
-        const leadData = await instantlyFetch("leads?email=" + encodeURIComponent(email) + "&limit=1");
-        const li = (leadData.items || []);
-        if (li.length) { const fn=li[0].first_name||""; const ln=li[0].last_name||""; if ((fn+ln).trim()) name=(fn+" "+ln).trim(); }
+        const ld = await instantlyFetch('leads?email=' + encodeURIComponent(email) + '&limit=1');
+        const li = ld.items || [];
+        if (li.length) { const fn=li[0].first_name||''; const ln=li[0].last_name||''; if((fn+ln).trim()) name=(fn+' '+ln).trim(); }
       } catch(e) {}
       const replyText = (item.body && item.body.text) || item.content_preview || '';
-
-      const lead = {
-        id: 'lead_instantly_' + Date.now() + '_' + Math.random().toString(36).slice(2),
-        name,
-        email,
-        phone: item.phone || '',
-        property: item.city || item.location || item.custom_variables?.city || '',
-        source: 'Instantly',
-        status: 'new',
-        createdAt: Date.now(),
-        calls: [],
-        notes: replyText ? [{ at: Date.now(), text: replyText }] : [],
-        followUpAt: null,
-        emailSentAt: null,
-      };
-
-      leads.unshift(lead);
+      const lead = { id: 'lead_instantly_' + Date.now() + '_' + Math.random().toString(36).slice(2), name, email, phone: '', property: '', source: 'Instantly', status: 'new', createdAt: Date.now(), calls: [], notes: replyText ? [{at:Date.now(),text:replyText}] : [], followUpAt: null, emailSentAt: null };
+      await pool.query('INSERT INTO leads (id, data) VALUES ($1, $2)', [lead.id, JSON.stringify(lead)]);
+      leads.push(lead);
       added++;
-      console.log(`[Instantly Poll] ✓ Added: ${name} <${email}>`);
+      console.log('[Instantly Poll] Added: ' + name + ' <' + email + '>');
     }
-
-    if (added > 0) writeLeads(leads);
-    console.log(`[Instantly Poll] Done — ${added} new lead(s) added.`);
-  } catch (err) {
-    console.error('[Instantly Poll] Error:', err.message);
-  }
+    console.log('[Instantly Poll] Done - ' + added + ' new lead(s).');
+  } catch(err) { console.error('[Instantly Poll] Error:', err.message); }
 }
 
-// ── Start ─────────────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`\n🏠 Lee's Leads running at http://localhost:${PORT}`);
-  console.log(`   Auto-syncing with Instantly every 5 minutes via API polling.\n`);
-  // Poll immediately on start, then every 5 minutes
+app.listen(PORT, async () => {
+  console.log('Lee\'s Leads running at http://localhost:' + PORT);
+  await initDB();
   pollInstantly();
   setInterval(pollInstantly, POLL_INTERVAL_MS);
 });
