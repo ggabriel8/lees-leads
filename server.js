@@ -156,7 +156,7 @@ async function pollInstantly() {
       added++;
       console.log('[Poll] Added: ' + name + ' <' + email + '>');
     }
-    if (added) console.log('[Poll] Done â ' + added + ' new lead(s)');
+    if (added) console.log('[Poll] Done Ã¢ÂÂ ' + added + ' new lead(s)');
   } catch (e) {
     console.error('[Poll] Error:', e.message);
   }
@@ -168,6 +168,41 @@ app.delete('/api/leads/:id', async (req, res) => {
     await pool.query('DELETE FROM leads WHERE id=$1', [req.params.id]);
     res.json({ status: 'deleted' });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+
+// ── Fix email-prefix names via Instantly ─────────────────────────────────────
+app.post('/api/fix-names', async (req, res) => {
+  try {
+    const leads = await readLeads();
+    const emailPrefixRe = /^[a-z0-9._]+$/i;
+    const toFix = leads.filter(l => l.email && emailPrefixRe.test(l.name) && l.name === l.email.split('@')[0]);
+    let fixed = 0;
+    for (const lead of toFix) {
+      try {
+        const ld = await instantlyFetch('leads?email=' + encodeURIComponent(lead.email) + '&limit=1');
+        const li = (ld.items || [])[0];
+        if (li) {
+          const fn = (li.first_name || '').trim();
+          const ln = (li.last_name || '').trim();
+          if (fn + ln) {
+            const name = (fn + ' ' + ln).trim();
+            await upsertLead({ ...lead, name });
+            fixed++;
+          }
+        }
+      } catch(e) {}
+    }
+    res.json({ fixed, total: toFix.length });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Delete lead ───────────────────────────────────────────────────────────────
+app.delete('/api/leads/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM leads WHERE id=$1', [req.params.id]);
+    res.json({ status: 'deleted' });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 async function start() {
