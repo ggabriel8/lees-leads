@@ -122,6 +122,9 @@
   .notif-bar p { color: #b91c1c; font-size: 13px; font-weight: 600; }
   .notif-bar .notif-item { background: #fff; border: 1px solid #fca5a5; border-radius: 6px; padding: 5px 12px; font-size: 12px; color: #dc2626; cursor: pointer; }
   .notif-bar .notif-item:hover { background: #fee2e2; }
+  .notif-bar .notif-item.today { border-color: #fcd34d; color: #b45309; }
+  .notif-bar .notif-item.today:hover { background: #fef3c7; }
+  .snooze-chip { padding: 5px 10px !important; font-size: 12px !important; font-weight: 600; }
 
   /* Modal */
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 100; }
@@ -229,13 +232,27 @@ function isActionLead(l) {
 
 // ── Notifications ─────────────────────────────────────────────────────────────
 function renderNotifBar() {
-  const due = getDueFollowUps();
+  const now = Date.now();
+  const tomorrow = new Date(); tomorrow.setHours(24, 0, 0, 0);
+  const startTomorrow = tomorrow.getTime();
+  const active = leads.filter(l => l.followUpAt && l.status !== 'closed');
+  const overdue = active.filter(l => l.followUpAt <= now);
+  const today = active.filter(l => l.followUpAt > now && l.followUpAt < startTomorrow);
+
   const existing = document.getElementById('notifBar');
   if (existing) existing.remove();
-  if (!due.length) return;
+  if (!overdue.length && !today.length) return;
+
+  const when = ms => new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const chip = (l, cls) => `<span class="notif-item ${cls}" onclick="openLead('${l.id}')">${l.name} · ${when(l.followUpAt)}</span>`;
+
+  let html = '';
+  if (overdue.length) html += `<p>🔔 Overdue (${overdue.length}):</p>` + overdue.map(l => chip(l, 'overdue')).join('');
+  if (today.length) html += `<p style="color:#b45309">📅 Due today (${today.length}):</p>` + today.map(l => chip(l, 'today')).join('');
+
   const bar = document.createElement('div');
   bar.className = 'notif-bar'; bar.id = 'notifBar';
-  bar.innerHTML = `<p>🔔 Follow-up due:</p>` + due.map(l => `<span class="notif-item" onclick="openLead('${l.id}')">${l.name}</span>`).join('');
+  bar.innerHTML = html;
   document.querySelector('.main').prepend(bar);
 }
 
@@ -367,7 +384,16 @@ function renderDetail(l) {
             ${['new','called','followup','closed'].map(s=>`<option ${l.status===s?'selected':''} value="${s}">${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('')}
           </select>
         </div>
-        ${followUpStr ? `<div class="info-card"><label>Follow-Up</label><div class="val" style="font-size:13px;color:${due?'#d97706':'inherit'}">${followUpStr}</div></div>` : ''}
+        <div class="info-card" style="grid-column:1/-1">
+          <label>Follow-Up Reminder${due ? ' · <span style="color:#d97706">DUE NOW</span>' : (followUpStr ? ` · <span style="color:var(--muted);text-transform:none;letter-spacing:0">${followUpStr}</span>` : '')}</label>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:4px">
+            <input type="datetime-local" class="edit-field" style="border:1px solid var(--border);border-radius:6px;padding:6px 8px;max-width:220px;font-weight:500" value="${l.followUpAt ? toLocalInput(l.followUpAt) : ''}" onchange="setFollowUpDate('${l.id}',this.value)">
+            <button class="btn btn-ghost snooze-chip" onclick="snoozeFollowUp('${l.id}',1)">Tomorrow</button>
+            <button class="btn btn-ghost snooze-chip" onclick="snoozeFollowUp('${l.id}',3)">+3 days</button>
+            <button class="btn btn-ghost snooze-chip" onclick="snoozeFollowUp('${l.id}',7)">+1 week</button>
+            ${l.followUpAt ? `<button class="btn btn-ghost snooze-chip" onclick="clearFollowUp('${l.id}')" style="color:var(--red)">Clear</button>` : ''}
+          </div>
+        </div>
       </div>
       <div class="section">
         <div class="section-title">📞 Call Log</div>
@@ -468,6 +494,38 @@ async function markFollowUpDone(id) {
   renderNotifBar();
   renderDetail(getLead(id));
 }
+
+// ── Follow-up reminder date ────────────────────────────────────────────────────
+// Convert an epoch-ms timestamp to a value the datetime-local input understands
+function toLocalInput(ms) {
+  const d = new Date(ms - new Date().getTimezoneOffset() * 60000);
+  return d.toISOString().slice(0, 16);
+}
+
+async function applyFollowUp(id, followUpAt) {
+  const updated = await apiPatch(id, { followUpAt });
+  Object.assign(getLead(id), updated);
+  renderFilterTabs();
+  renderLeadList(document.getElementById('searchInput').value);
+  renderNotifBar();
+  renderDetail(getLead(id));
+}
+
+// Set an exact date/time from the picker
+async function setFollowUpDate(id, value) {
+  if (!value) return applyFollowUp(id, null);
+  applyFollowUp(id, new Date(value).getTime());
+}
+
+// Quick snooze N days out, defaulting to 9:00am that morning
+async function snoozeFollowUp(id, days) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  d.setHours(9, 0, 0, 0);
+  applyFollowUp(id, d.getTime());
+}
+
+async function clearFollowUp(id) { applyFollowUp(id, null); }
 
 // ── Email ─────────────────────────────────────────────────────────────────────
 function generateEmail(l) {
