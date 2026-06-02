@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 3000;
 const LEADS_FILE = path.join(__dirname, 'leads.json');
 
 // ── Instantly API config ──────────────────────────────────────────────────────
-const INSTANTLY_API_KEY = 'MTdiOGUzYjMtOTIzZC00NDI3LWJIM2QtODMxMjAxNTNkNTIlOlJwY2dySUZuYlBPSw==';
+const INSTANTLY_API_KEY = 'MTdiOGUzYjMtOTIzZC00NDI3LWJlM2QtODMxMjAxNTNkNTllOlJPTW5HRWNnS3dTRA==';
 const POLL_INTERVAL_MS = 5 * 60 * 1000; // every 5 minutes
 
 app.use(cors());
