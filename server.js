@@ -95,12 +95,28 @@ app.post('/webhook/instantly', async (req, res) => {
     const email = sanitizeEmail(data.email || data.lead_email || (data.contact && data.contact.email) || '');
     const firstName = data.first_name || data.firstName || (data.contact && data.contact.first_name) || '';
     const lastName = data.last_name || data.lastName || (data.contact && data.contact.last_name) || '';
-    const name = (firstName + ' ' + lastName).trim() || email.split('@')[0] || 'Unknown';
-    const phone = data.phone || (data.contact && data.contact.phone) || '';
-    const property = data.city || data.location || data.property || '';
+    let name = (firstName + ' ' + lastName).trim();
+    let phone = data.phone || (data.contact && data.contact.phone) || '';
+    let property = data.property || data.property_address || data.address || data.city || data.location || '';
     const replyText = data.reply_text || data.message || data.body || '';
     const leads = await readLeads();
     if (isDuplicate(leads, email)) return res.json({ status: 'duplicate' });
+
+    // Enrich missing fields from the Instantly lead record (name/phone/property
+    // often live in the lead's custom variables rather than the webhook body)
+    if (email && (!name || !property || !phone)) {
+      const li = await findInstantlyLead(email);
+      if (li) {
+        if (!name) {
+          const fn = (li.first_name || '').trim();
+          const ln = (li.last_name || '').trim();
+          if (fn + ln) name = (fn + ' ' + ln).trim();
+        }
+        if (!phone) phone = (li.phone || '').trim();
+        if (!property) property = extractProperty(li);
+      }
+    }
+    if (!name) name = (email.split('@')[0] || 'Unknown');
     const lead = {
       id: 'lead_instantly_' + Date.now(),
       name, email, phone, property, source: 'Instantly', status: 'new',
@@ -129,6 +145,85 @@ function instantlyFetch(endpoint) {
   });
 }
 
+// POST helper — Instantly v2 lead search is a POST endpoint, not GET
+function instantlyPost(endpoint, body) {
+  return new Promise((resolve, reject) => {
+    const payload = JSON.stringify(body || {});
+    const req = https.request({
+      hostname: 'api.instantly.ai',
+      path: '/api/v2/' + endpoint,
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + INSTANTLY_API_KEY,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload),
+      },
+    }, res => {
+      let d = '';
+      res.on('data', c => d += c);
+      res.on('end', () => { try { resolve(JSON.parse(d)); } catch { resolve({}); } });
+    });
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
+  });
+}
+
+// Pull a property/address out of an Instantly lead's custom variables (payload)
+const PROPERTY_KEYS = [
+  'property', 'property_address', 'propertyAddress', 'address', 'property_city',
+  'listing', 'listing_address', 'home', 'home_address', 'street', 'street_address',
+  'city', 'location',
+];
+function extractProperty(li) {
+  if (!li) return '';
+  const p = li.payload || li.custom_variables || {};
+  for (const k of PROPERTY_KEYS) {
+    if (p[k] && String(p[k]).trim()) return String(p[k]).trim();
+  }
+  // Fall back to any payload key that looks address/property related
+  for (const [k, v] of Object.entries(p)) {
+    if (/address|property|listing|home|street/i.test(k) && v && String(v).trim()) {
+      return String(v).trim();
+    }
+  }
+  return '';
+}
+
+// Parse name / property out of the email thread text. Lee's campaign template is
+// "Hi {{first_name}}, still looking to sell {{property}}?" — that quoted outbound
+// is included in the reply, so we can recover both even if Instantly has no data.
+function parseFromThread(text) {
+  const out = { name: '', property: '' };
+  if (!text) return out;
+  // Property: "...looking to sell <PROPERTY>?" or "...sell <PROPERTY> ?"
+  let m = text.match(/sell\s+(.+?)\s*\?/i);
+  if (m) out.property = m[1].replace(/\s+/g, ' ').trim();
+  // Name: greeting like "Hi Thomas," / "Hello Thomas" / "Hey Thomas"
+  m = text.match(/\b(?:[Hh]i|[Hh]ello|[Hh]ey|[Dd]ear)\s+([A-Z][a-zA-Z'’-]+(?:\s+[A-Z][a-zA-Z'’-]+){0,2})\b/);
+  if (m) out.name = m[1].trim();
+  return out;
+}
+
+// Turn an email prefix like "thomasmontalbanoiii" into a best-guess display name
+function looksLikeEmailPrefix(name, email) {
+  if (!name || !email) return false;
+  return /^[a-z0-9._]+$/i.test(name) && name.toLowerCase() === email.split('@')[0].toLowerCase();
+}
+
+// Find a single Instantly lead by email via the POST /leads/list search endpoint
+async function findInstantlyLead(email) {
+  if (!email) return null;
+  try {
+    const ld = await instantlyPost('leads/list', { search: email, limit: 10 });
+    const items = ld.items || [];
+    // Prefer an exact email match; otherwise take the first result
+    return items.find(i => (i.email || '').toLowerCase() === email.toLowerCase()) || items[0] || null;
+  } catch (e) {
+    return null;
+  }
+}
+
 async function pollInstantly() {
   try {
     const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -142,19 +237,24 @@ async function pollInstantly() {
       const email = sanitizeEmail(item.lead || item.from_address_email || '');
       if (!email || isDuplicate(leads, email)) continue;
       let name = email.split('@')[0];
-      try {
-        const ld = await instantlyFetch('leads?email=' + encodeURIComponent(email) + '&limit=1');
-        const li = (ld.items || [])[0];
-        if (li) {
-          const fn = (li.first_name || '').trim();
-          const ln = (li.last_name || '').trim();
-          if (fn + ln) name = (fn + ' ' + ln).trim();
-        }
-      } catch (e) {}
+      let phone = '';
+      let property = '';
+      const li = await findInstantlyLead(email);
+      if (li) {
+        const fn = (li.first_name || '').trim();
+        const ln = (li.last_name || '').trim();
+        if (fn + ln) name = (fn + ' ' + ln).trim();
+        phone = (li.phone || '').trim();
+        property = extractProperty(li);
+      }
       const replyText = (item.body && item.body.text) || item.content_preview || '';
+      // Fallback: recover name/property from the email thread text
+      const parsed = parseFromThread(replyText);
+      if (!property && parsed.property) property = parsed.property;
+      if (looksLikeEmailPrefix(name, email) && parsed.name) name = parsed.name;
       const lead = {
         id: 'lead_instantly_' + Date.now() + '_' + Math.random().toString(36).slice(2),
-        name, email, phone: '', property: '', source: 'Instantly', status: 'new',
+        name, email, phone, property, source: 'Instantly', status: 'new',
         createdAt: Date.now(), calls: [],
         notes: replyText ? [{ at: Date.now(), text: replyText }] : [],
         followUpAt: null, emailSentAt: null,
@@ -167,6 +267,55 @@ async function pollInstantly() {
     if (added) console.log('[Poll] Done ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ ' + added + ' new lead(s)');
   } catch (e) {
     console.error('[Poll] Error:', e.message);
+  }
+  // Self-heal any older leads that are still missing a real name or property
+  await backfillLeads();
+}
+
+// Backfill name / phone / property on existing leads from their Instantly record.
+// Runs automatically on startup and after each poll, so leads fix themselves.
+async function backfillLeads() {
+  try {
+    const leads = await readLeads();
+    const toFix = leads.filter(l =>
+      (l.email && looksLikeEmailPrefix(l.name, l.email)) || !l.property
+    );
+    let fixed = 0;
+    for (const lead of toFix) {
+      try {
+        const updated = { ...lead };
+        let changed = false;
+        const isPrefixName = looksLikeEmailPrefix(lead.name, lead.email);
+
+        // 1) Try the Instantly lead record (real name / phone / property custom var)
+        const li = lead.email ? await findInstantlyLead(lead.email) : null;
+        if (li) {
+          const fn = (li.first_name || '').trim();
+          const ln = (li.last_name || '').trim();
+          if (isPrefixName && (fn + ln)) { updated.name = (fn + ' ' + ln).trim(); changed = true; }
+          if (!updated.property) {
+            const prop = extractProperty(li);
+            if (prop) { updated.property = prop; changed = true; }
+          }
+          if (!updated.phone && (li.phone || '').trim()) { updated.phone = li.phone.trim(); changed = true; }
+        }
+
+        // 2) Fallback: recover name/property from the stored email thread (notes)
+        const noteText = (lead.notes || []).map(n => n.text).join('\n');
+        const parsed = parseFromThread(noteText);
+        if (!updated.property && parsed.property) { updated.property = parsed.property; changed = true; }
+        if (looksLikeEmailPrefix(updated.name, updated.email) && parsed.name) {
+          updated.name = parsed.name; changed = true;
+        }
+
+        if (changed) { await upsertLead(updated); fixed++; }
+      } catch (e) {}
+    }
+    if (fixed) console.log('[Backfill] Updated ' + fixed + ' lead(s)');
+    return fixed;
+  } catch (e) {
+    console.error('[Backfill] Error:', e.message);
+    return 0;
   }
 }
 
@@ -199,26 +348,8 @@ app.post('/api/cleanup-emails', async (req, res) => {
 // Ã¢ÂÂÃ¢ÂÂ Fix email-prefix names via Instantly Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 app.post('/api/fix-names', async (req, res) => {
   try {
-    const leads = await readLeads();
-    const emailPrefixRe = /^[a-z0-9._]+$/i;
-    const toFix = leads.filter(l => l.email && emailPrefixRe.test(l.name) && l.name === l.email.split('@')[0]);
-    let fixed = 0;
-    for (const lead of toFix) {
-      try {
-        const ld = await instantlyFetch('leads?email=' + encodeURIComponent(lead.email) + '&limit=1');
-        const li = (ld.items || [])[0];
-        if (li) {
-          const fn = (li.first_name || '').trim();
-          const ln = (li.last_name || '').trim();
-          if (fn + ln) {
-            const name = (fn + ' ' + ln).trim();
-            await upsertLead({ ...lead, name });
-            fixed++;
-          }
-        }
-      } catch(e) {}
-    }
-    res.json({ fixed, total: toFix.length });
+    const fixed = await backfillLeads();
+    res.json({ fixed });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

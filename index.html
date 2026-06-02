@@ -268,6 +268,7 @@ function renderLeadList(filter = '') {
     else if (activeTab === 'action') matchTab = isActionLead(l);
     else matchTab = l.status === activeTab;
     const matchSearch = l.name.toLowerCase().includes(filter.toLowerCase()) ||
+      (l.property||'').toLowerCase().includes(filter.toLowerCase()) ||
       (l.email||'').includes(filter) || (l.phone||'').includes(filter);
     return matchTab && matchSearch;
   });
@@ -277,7 +278,7 @@ function renderLeadList(filter = '') {
         const due = l.followUpAt && l.followUpAt <= Date.now() && l.status !== 'closed';
         return `<div class="lead-item ${activeLead===l.id?'active':''}" onclick="openLead('${l.id}')">
           ${due ? '<div class="notif-dot"></div>' : ''}
-          <div class="lead-item-name">${l.name}</div>
+          <div class="lead-item-name">${l.name}${l.property ? ` · ${l.property}` : ''}</div>
           <div class="lead-item-meta"><span>${l.phone||l.email||'—'}</span><span class="lead-item-badge badge-${l.status}">${l.status}</span></div>
         </div>`;
       }).join('');
@@ -340,6 +341,7 @@ function renderDetail(l) {
       <div class="lead-top">
         <div class="lead-name-block">
           <h1>${l.name}<span class="status-pill badge-${l.status}">${l.status.toUpperCase()}</span></h1>
+          ${l.property ? `<div class="lead-sub" style="font-weight:600;color:var(--text)">🏠 ${l.property}</div>` : ''}
           <div class="lead-sub">Added ${new Date(l.createdAt).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})} · ${l.source}</div>
         </div>
         <div class="lead-actions">
