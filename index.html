@@ -193,7 +193,9 @@ async function fetchLeads() {
     renderNotifBar();
     if (activeLead) {
       const noteInput = document.getElementById('noteInput');
-      const isTyping = noteInput && document.activeElement === noteInput && noteInput.value.trim() !== '';
+      const ae = document.activeElement;
+      const isTyping = (noteInput && ae === noteInput && noteInput.value.trim() !== '')
+        || (ae && ae.classList && ae.classList.contains('edit-field'));
       if (!isTyping) {
         const l = getLead(activeLead);
         if (l) renderDetail(l);
