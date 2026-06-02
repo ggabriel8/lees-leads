@@ -191,7 +191,13 @@ async function pollInstantly() {
       const email = item.lead || item.from_address_email || '';
       if (!email || isDuplicate(leads, email)) continue;
 
-      const name = email.split('@')[0];
+      // Look up real name from Instantly leads API
+      let name = email.split("@")[0];
+      try {
+        const leadData = await instantlyFetch("leads?email=" + encodeURIComponent(email) + "&limit=1");
+        const li = (leadData.items || []);
+        if (li.length) { const fn=li[0].first_name||""; const ln=li[0].last_name||""; if ((fn+ln).trim()) name=(fn+" "+ln).trim(); }
+      } catch(e) {}
       const replyText = (item.body && item.body.text) || item.content_preview || '';
 
       const lead = {
