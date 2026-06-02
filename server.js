@@ -156,11 +156,19 @@ async function pollInstantly() {
       added++;
       console.log('[Poll] Added: ' + name + ' <' + email + '>');
     }
-    if (added) console.log('[Poll] Done — ' + added + ' new lead(s)');
+    if (added) console.log('[Poll] Done â ' + added + ' new lead(s)');
   } catch (e) {
     console.error('[Poll] Error:', e.message);
   }
 }
+
+
+app.delete('/api/leads/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM leads WHERE id=$1', [req.params.id]);
+    res.json({ status: 'deleted' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 async function start() {
   await initDB();
