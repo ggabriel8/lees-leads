@@ -24,8 +24,7 @@
     .sidebar.lead-open { display: none; }
     .main { flex: 1; overflow-y: auto; }
     .main:not(.lead-open) { display: none; }
-.main:not(.lead-open) { display: none; }
-.main.lead-open { display: flex; }
+    .main.lead-open { display: flex; }
     .lead-detail { padding: 16px; }
     .lead-top { flex-direction: column; gap: 12px; }
     .lead-actions { justify-content: flex-start; }
@@ -60,6 +59,7 @@
   .badge-called { background: #dcfce7; color: #15803d; }
   .badge-followup { background: #fef3c7; color: #b45309; }
   .badge-closed { background: #fee2e2; color: #b91c1c; }
+  .badge-action { background: #fef3c7; color: #b45309; }
   .notif-dot { width: 8px; height: 8px; background: var(--red); border-radius: 50%; position: absolute; top: 12px; right: 14px; }
 
   /* Main */
@@ -188,7 +188,6 @@ async function fetchLeads() {
     renderFilterTabs();
     renderLeadList(document.getElementById('searchInput').value);
     renderNotifBar();
-    // Re-render active lead only if user isn't typing a note
     if (activeLead) {
       const noteInput = document.getElementById('noteInput');
       const isTyping = noteInput && document.activeElement === noteInput && noteInput.value.trim() !== '';
@@ -197,7 +196,6 @@ async function fetchLeads() {
         if (l) renderDetail(l);
       }
     }
-    // Flash if new leads arrived
     if (fresh.length > prevCount && prevCount > 0) {
       document.querySelector('.live-dot').style.background = '#f59e0b';
       setTimeout(() => document.querySelector('.live-dot').style.background = '', 2000);
@@ -220,6 +218,10 @@ function getDueFollowUps() {
   return leads.filter(l => l.followUpAt && l.followUpAt <= now && l.status !== 'closed');
 }
 
+function isActionLead(l) {
+  return l.status === 'new' || (l.followUpAt && l.followUpAt <= Date.now() && l.status !== 'closed');
+}
+
 // ── Notifications ─────────────────────────────────────────────────────────────
 function renderNotifBar() {
   const due = getDueFollowUps();
@@ -234,11 +236,23 @@ function renderNotifBar() {
 
 // ── Filter Tabs ───────────────────────────────────────────────────────────────
 function renderFilterTabs() {
-  const tabs = [{id:'action',label:'⚡ Action'},{id:'new',label:'New'},{id:'called',label:'Called'},{id:'followup',label:'Follow-Up'},{id:'closed',label:'Closed'},{id:'all',label:'All'}];
+  const tabs = [
+    {id:'action', label:'⚡ Action'},
+    {id:'new',    label:'New'},
+    {id:'called', label:'Called'},
+    {id:'followup',label:'Follow-Up'},
+    {id:'closed', label:'Closed'},
+    {id:'all',    label:'All'},
+  ];
   const counts = {};
   leads.forEach(l => { counts[l.status] = (counts[l.status]||0) + 1; });
+  const actionCount = leads.filter(isActionLead).length;
+
   document.getElementById('filterTabs').innerHTML = tabs.map(t => {
-    const count = t.id === 'all' ? leads.filter(l=>l.status!=='closed').length : t.id === 'action' ? leads.filter(l=>l.status==='new'||(l.followUpAt&&l.followUpAt<=Date.now()&&l.status!=='closed')).length : (counts[t.id]||0);
+    let count;
+    if (t.id === 'action') count = actionCount;
+    else if (t.id === 'all') count = leads.filter(l => l.status !== 'closed').length;
+    else count = counts[t.id] || 0;
     return `<div class="filter-tab ${activeTab===t.id?'active':''}" onclick="setTab('${t.id}')">${t.label}<span class="tab-count">${count}</span></div>`;
   }).join('');
 }
@@ -249,9 +263,12 @@ function setTab(tab) { activeTab = tab; renderFilterTabs(); renderLeadList(docum
 function renderLeadList(filter = '') {
   const list = document.getElementById('leadList');
   const filtered = leads.filter(l => {
-    const isAction = l.status==='new'||(l.followUpAt&&l.followUpAt<=Date.now()&&l.status!=='closed');
-    const matchTab = (activeTab==='all'&&l.status!=='closed')||(activeTab==='action'&&isAction)||(activeTab!=='all'&&activeTab!=='action'&&l.status===activeTab);
-    const matchSearch = l.name.toLowerCase().includes(filter.toLowerCase()) || (l.email||'').includes(filter) || (l.phone||'').includes(filter);
+    let matchTab;
+    if (activeTab === 'all') matchTab = l.status !== 'closed';
+    else if (activeTab === 'action') matchTab = isActionLead(l);
+    else matchTab = l.status === activeTab;
+    const matchSearch = l.name.toLowerCase().includes(filter.toLowerCase()) ||
+      (l.email||'').includes(filter) || (l.phone||'').includes(filter);
     return matchTab && matchSearch;
   });
   list.innerHTML = !filtered.length
@@ -297,7 +314,6 @@ function openLead(id) {
   document.getElementById('leadDetail').classList.remove('hidden');
   renderLeadList(document.getElementById('searchInput').value);
   renderDetail(getLead(id));
-  // Mobile: hide sidebar, show main
   if (window.innerWidth <= 640) {
     document.querySelector('.sidebar').classList.add('lead-open');
     document.querySelector('.main').classList.add('lead-open');
@@ -327,7 +343,8 @@ function renderDetail(l) {
           <div class="lead-sub">Added ${new Date(l.createdAt).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})} · ${l.source}</div>
         </div>
         <div class="lead-actions">
-          <button class="btn btn-call" onclick="logCall('${l.id}')">📞 Log Call</button>
+          <a href="tel:${l.phone}" style="text-decoration:none"><button class="btn btn-call">📞 Call</button></a>
+          <button class="btn btn-call" onclick="logCall('${l.id}')" style="background:#0f7b3e">Log Call</button>
           <button class="btn btn-email" onclick="showEmailPanel('${l.id}')">✉️ Follow-Up Email</button>
           <button class="btn btn-close" onclick="toggleClose('${l.id}')">${l.status==='closed'?'Reopen':'Close'} Lead</button>
         </div>
@@ -507,7 +524,6 @@ document.addEventListener('keydown', e => {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 fetchLeads();
-// Poll server every 15 seconds for new leads from Instantly
 setInterval(fetchLeads, 15000);
 </script>
 </body>
