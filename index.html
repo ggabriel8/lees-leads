@@ -176,7 +176,7 @@
 const API = '/api';
 let leads = [];
 let activeLead = null;
-let activeTab = 'all';
+let activeTab = 'action';
 
 // ── Fetch leads from server ──────────────────────────────────────────────────
 async function fetchLeads() {
@@ -234,11 +234,11 @@ function renderNotifBar() {
 
 // ── Filter Tabs ───────────────────────────────────────────────────────────────
 function renderFilterTabs() {
-  const tabs = [{id:'all',label:'All'},{id:'new',label:'New'},{id:'called',label:'Called'},{id:'followup',label:'Follow-Up'},{id:'closed',label:'Closed'}];
+  const tabs = [{id:'action',label:'⚡ Action'},{id:'new',label:'New'},{id:'called',label:'Called'},{id:'followup',label:'Follow-Up'},{id:'closed',label:'Closed'},{id:'all',label:'All'}];
   const counts = {};
   leads.forEach(l => { counts[l.status] = (counts[l.status]||0) + 1; });
   document.getElementById('filterTabs').innerHTML = tabs.map(t => {
-    const count = t.id === 'all' ? leads.length : (counts[t.id]||0);
+    const count = t.id === 'all' ? leads.filter(l=>l.status!=='closed').length : t.id === 'action' ? leads.filter(l=>l.status==='new'||(l.followUpAt&&l.followUpAt<=Date.now()&&l.status!=='closed')).length : (counts[t.id]||0);
     return `<div class="filter-tab ${activeTab===t.id?'active':''}" onclick="setTab('${t.id}')">${t.label}<span class="tab-count">${count}</span></div>`;
   }).join('');
 }
