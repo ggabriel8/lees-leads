@@ -154,8 +154,9 @@ async function pollInstantly() {
       await upsertLead(lead);
       leads.push(lead);
       added++;
+      console.log('[Poll] Added: ' + name + ' <' + email + '>');
     }
-    if (added) console.log('[Poll] Added ' + added + ' lead(s)');
+    if (added) console.log('[Poll] Done — ' + added + ' new lead(s)');
   } catch (e) {
     console.error('[Poll] Error:', e.message);
   }
