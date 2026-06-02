@@ -23,7 +23,8 @@
     .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border); flex-shrink: 0; }
     .sidebar.lead-open { display: none; }
     .main { flex: 1; overflow-y: auto; }
-    .main.lead-open { display: flex; }
+    .main:not(.lead-open) { display: none; }
+.main.lead-open { display: flex; }
     .lead-detail { padding: 16px; }
     .lead-top { flex-direction: column; gap: 12px; }
     .lead-actions { justify-content: flex-start; }
