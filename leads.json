@@ -1,0 +1,458 @@
+[
+  {
+    "id": "lead_1780356838204",
+    "name": "Gaby",
+    "email": "",
+    "phone": "9179927209",
+    "property": "Coronado Th-9",
+    "source": "Instantly",
+    "status": "new",
+    "createdAt": 1780356838204,
+    "calls": [],
+    "notes": [
+      {
+        "at": 1780356875374,
+        "text": "Met him while showing townhouses at Coronado- he is a contract and is redoing the TH.  He is interested in selling, closer to completion.  I will call him to find out more"
+      }
+    ],
+    "followUpAt": null,
+    "emailSentAt": null
+  },
+  {
+    "id": "lead_1780356280614",
+    "name": "Les Saperia",
+    "email": "LespSaperia@gmail.com",
+    "phone": "4168309599",
+    "property": "",
+    "source": "Referral",
+    "status": "new",
+    "createdAt": 1780356280614,
+    "calls": [],
+    "notes": [
+      {
+        "at": 1780356747206,
+        "text": "Refferal from Yehuda Feldman Gabriels friend from elementy school \nHim and his wife stay every year in the winter at the carlyle and pay around 5500 per monht.  Looking for something similar- ocean condo in surfside- also open to buying condo around 1.5-1.8 million.\n\nNeed to follow up with him.  Need to figure out how to do short term rentals."
+      }
+    ],
+    "followUpAt": null,
+    "emailSentAt": 1780356760447
+  },
+  {
+    "id": "lead_seed_0",
+    "name": "Chris Calderbank",
+    "email": "chrisc96@comcast.net",
+    "phone": "609-502-5826",
+    "property": "Delray Beach",
+    "source": "Instantly",
+    "status": "followup",
+    "createdAt": 1748823600000,
+    "calls": [],
+    "notes": [
+      {
+        "at": 1748823600000,
+        "text": "Yes. Still selling. If you have a buyer call Staci Samuals."
+      }
+    ],
+    "followUpAt": null,
+    "emailSentAt": null
+  },
+  {
+    "id": "lead_seed_1",
+    "name": "Juan Rios",
+    "email": "jriosborges@gmail.com",
+    "phone": "305-904-9804",
+    "property": "Hallandale Beach",
+    "source": "Instantly",
+    "status": "new",
+    "createdAt": 1748823660000,
+    "calls": [],
+    "notes": [
+      {
+        "at": 1748823660000,
+        "text": "Yes, still looking."
+      }
+    ],
+    "followUpAt": null,
+    "emailSentAt": null
+  },
+  {
+    "id": "lead_seed_2",
+    "name": "Julia Amsterdam",
+    "email": "juliaamsterdam23@gmail.com",
+    "phone": "860-212-5129",
+    "property": "Boynton Beach",
+    "source": "Instantly",
+    "status": "new",
+    "createdAt": 1748823720000,
+    "calls": [],
+    "notes": [
+      {
+        "at": 1748823720000,
+        "text": "Why didn't you bring your buyers by when the property was listed?"
+      }
+    ],
+    "followUpAt": null,
+    "emailSentAt": null
+  },
+  {
+    "id": "lead_seed_3",
+    "name": "Reilly Shaughnessy",
+    "email": "reilshaughn@gmail.com",
+    "phone": "619-673-5333",
+    "property": "Hutchinson Island",
+    "source": "Instantly",
+    "status": "followup",
+    "createdAt": 1748823780000,
+    "calls": [],
+    "notes": [
+      {
+        "at": 1748823780000,
+        "text": "Hi Lee Wendy Franco is our agent so please contact her."
+      }
+    ],
+    "followUpAt": null,
+    "emailSentAt": null
+  },
+  {
+    "id": "lead_seed_4",
+    "name": "Justo Felix",
+    "email": "justofelix17@icloud.com",
+    "phone": "760-600-4083",
+    "property": "Southwest Ranches",
+    "source": "Instantly",
+    "status": "called",
+    "createdAt": 1748823840000,
+    "calls": [],
+    "notes": [
+      {
+        "at": 1748823840000,
+        "text": "Yes – called"
+      }
+    ],
+    "followUpAt": null,
+    "emailSentAt": null
+  },
+  {
+    "id": "lead_seed_5",
+    "name": "Michael Weiss",
+    "email": "wmiweiss@gmail.com",
+    "phone": "917-673-4898",
+    "property": "West Palm Beach",
+    "source": "Instantly",
+    "status": "new",
+    "createdAt": 1748823900000,
+    "calls": [],
+    "notes": [
+      {
+        "at": 1748823900000,
+        "text": "If you have specific buyer, please call me at 845-537-6253."
+      }
+    ],
+    "followUpAt": null,
+    "emailSentAt": null
+  },
+  {
+    "id": "lead_seed_6",
+    "name": "Edward Gelin",
+    "email": "edwardgelin0300@gmail.com",
+    "phone": "410-598-2900",
+    "property": "Jupiter",
+    "source": "Instantly",
+    "status": "new",
+    "createdAt": 1748823960000,
+    "calls": [],
+    "notes": [
+      {
+        "at": 1748823960000,
+        "text": "So why haven't u sold it???"
+      }
+    ],
+    "followUpAt": null,
+    "emailSentAt": null
+  },
+  {
+    "id": "lead_seed_7",
+    "name": "maguchal986",
+    "email": "maguchal986@gmail.com",
+    "phone": "",
+    "property": "Pembroke Pines",
+    "source": "Instantly",
+    "status": "new",
+    "createdAt": 1748824020000,
+    "calls": [],
+    "notes": [
+      {
+        "at": 1748824020000,
+        "text": "Yes, we are still interested."
+      }
+    ],
+    "followUpAt": null,
+    "emailSentAt": null
+  },
+  {
+    "id": "lead_seed_8",
+    "name": "Russell Erickson",
+    "email": "s38boat@comcast.net",
+    "phone": "561-801-3125",
+    "property": "Cape Coral",
+    "source": "Instantly",
+    "status": "followup",
+    "createdAt": 1748824080000,
+    "calls": [],
+    "notes": [
+      {
+        "at": 1748824080000,
+        "text": "I'm waiting 31 days to reset the MLS but it's still for sale."
+      }
+    ],
+    "followUpAt": null,
+    "emailSentAt": null
+  },
+  {
+    "id": "lead_seed_9",
+    "name": "Michael Ballentine",
+    "email": "",
+    "phone": "",
+    "property": "Atlantis",
+    "source": "Instantly",
+    "status": "closed",
+    "createdAt": 1748824140000,
+    "calls": [],
+    "notes": [
+      {
+        "at": 1748824140000,
+        "text": "No longer owns the property. Son David is the owner."
+      }
+    ],
+    "followUpAt": null,
+    "emailSentAt": null
+  },
+  {
+    "id": "lead_seed_10",
+    "name": "tlopez711",
+    "email": "tlopez711@yahoo.com",
+    "phone": "",
+    "property": "Sunrise",
+    "source": "Instantly",
+    "status": "new",
+    "createdAt": 1748824200000,
+    "calls": [],
+    "notes": [
+      {
+        "at": 1748824200000,
+        "text": "Hi Can I call you? Need a number."
+      }
+    ],
+    "followUpAt": null,
+    "emailSentAt": null
+  },
+  {
+    "id": "lead_seed_11",
+    "name": "Jorge Benitez",
+    "email": "jorgebntz7@gmail.com",
+    "phone": "786-262-3526",
+    "property": "Hialeah",
+    "source": "Instantly",
+    "status": "followup",
+    "createdAt": 1748824260000,
+    "calls": [],
+    "notes": [
+      {
+        "at": 1748824260000,
+        "text": "I took it off the market. Have folks that would buy it."
+      }
+    ],
+    "followUpAt": null,
+    "emailSentAt": null
+  },
+  {
+    "id": "lead_seed_12",
+    "name": "juditturner",
+    "email": "juditturner@hotmail.com",
+    "phone": "",
+    "property": "Fort Lauderdale",
+    "source": "Instantly",
+    "status": "followup",
+    "createdAt": 1748824320000,
+    "calls": [],
+    "notes": [
+      {
+        "at": 1748824320000,
+        "text": "It has been rented for a year."
+      }
+    ],
+    "followUpAt": null,
+    "emailSentAt": null
+  },
+  {
+    "id": "lead_seed_13",
+    "name": "chuadonga",
+    "email": "chuadonga@comcast.net",
+    "phone": "",
+    "property": "Plantation",
+    "source": "Instantly",
+    "status": "new",
+    "createdAt": 1748824380000,
+    "calls": [],
+    "notes": [
+      {
+        "at": 1748824380000,
+        "text": "Yes. Bring me a buyer."
+      }
+    ],
+    "followUpAt": null,
+    "emailSentAt": null
+  },
+  {
+    "id": "lead_seed_14",
+    "name": "Arthur Goldblatt",
+    "email": "aggap@aol.com",
+    "phone": "310-422-3116",
+    "property": "Miami",
+    "source": "Instantly",
+    "status": "followup",
+    "createdAt": 1748824440000,
+    "calls": [],
+    "notes": [
+      {
+        "at": 1748824440000,
+        "text": "Hi Lee, I responded to you on Friday."
+      }
+    ],
+    "followUpAt": null,
+    "emailSentAt": null
+  },
+  {
+    "id": "lead_seed_15",
+    "name": "Rebecca DiPietro",
+    "email": "rebeccadipietro79@gmail.com",
+    "phone": "502-377-0444",
+    "property": "Hypoluxo",
+    "source": "Instantly",
+    "status": "followup",
+    "createdAt": 1748824500000,
+    "calls": [],
+    "notes": [
+      {
+        "at": 1748824500000,
+        "text": "The condo is still for sale. If you come across a buyer…"
+      }
+    ],
+    "followUpAt": null,
+    "emailSentAt": null
+  },
+  {
+    "id": "lead_seed_16",
+    "name": "Jose Pernalete",
+    "email": "sinestres2010@gmail.com",
+    "phone": "305-878-9197",
+    "property": "North Miami Beach",
+    "source": "Instantly",
+    "status": "followup",
+    "createdAt": 1748824560000,
+    "calls": [],
+    "notes": [
+      {
+        "at": 1748824560000,
+        "text": "SEND ME A SERIOUS BUYER FOR THAT PROPERTY."
+      }
+    ],
+    "followUpAt": null,
+    "emailSentAt": null
+  },
+  {
+    "id": "lead_seed_17",
+    "name": "centronet",
+    "email": "centronet@hotmail.com",
+    "phone": "",
+    "property": "Port St. Lucie",
+    "source": "Instantly",
+    "status": "closed",
+    "createdAt": 1748824620000,
+    "calls": [],
+    "notes": [
+      {
+        "at": 1748824620000,
+        "text": "HI I'M THE LISTING AGENT – not the owner."
+      }
+    ],
+    "followUpAt": null,
+    "emailSentAt": null
+  },
+  {
+    "id": "lead_seed_18",
+    "name": "Linda Polish",
+    "email": "linda.polish@gmail.com",
+    "phone": "561-389-1529",
+    "property": "Wellington",
+    "source": "Instantly",
+    "status": "followup",
+    "createdAt": 1748824680000,
+    "calls": [],
+    "notes": [
+      {
+        "at": 1748824680000,
+        "text": "My house is in litigation. The people in there don't want to leave."
+      }
+    ],
+    "followUpAt": null,
+    "emailSentAt": null
+  },
+  {
+    "id": "lead_seed_19",
+    "name": "Alan Levin",
+    "email": "alanlevin@gmail.com",
+    "phone": "708-205-2778",
+    "property": "Delray Beach",
+    "source": "Instantly",
+    "status": "new",
+    "createdAt": 1748824740000,
+    "calls": [],
+    "notes": [
+      {
+        "at": 1748824740000,
+        "text": "Considering…"
+      }
+    ],
+    "followUpAt": null,
+    "emailSentAt": null
+  },
+  {
+    "id": "lead_seed_20",
+    "name": "suntantasinflorida",
+    "email": "suntantasinflorida@gmail.com",
+    "phone": "",
+    "property": "Port St. Lucie",
+    "source": "Instantly",
+    "status": "followup",
+    "createdAt": 1748824800000,
+    "calls": [],
+    "notes": [
+      {
+        "at": 1748824800000,
+        "text": "Owner Broker agent – firm on price!"
+      }
+    ],
+    "followUpAt": null,
+    "emailSentAt": null
+  },
+  {
+    "id": "lead_seed_21",
+    "name": "Guy Tenenbaum",
+    "email": "guytenenbaum@gmail.com",
+    "phone": "305-776-2428",
+    "property": "Jupiter (Ranch Colony)",
+    "source": "Instantly",
+    "status": "called",
+    "createdAt": 1748824860000,
+    "calls": [],
+    "notes": [
+      {
+        "at": 1748824860000,
+        "text": "Yes, we are still interested. Price?"
+      }
+    ],
+    "followUpAt": null,
+    "emailSentAt": null
+  }
+]

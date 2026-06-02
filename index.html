@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lee's Leads</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f4f6f9; --surface: #ffffff; --surface2: #f0f2f5;
+    --border: #e0e4ea; --accent: #2563eb; --accent-hover: #1d4ed8;
+    --green: #16a34a; --yellow: #d97706; --red: #dc2626;
+    --text: #111827; --muted: #6b7280; --radius: 10px;
+  }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 15px; min-height: 100vh; }
+  .app { display: flex; height: 100vh; overflow: hidden; }
+  .sidebar { width: 268px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
+  .main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+
+  /* ── Mobile ── */
+  @media (max-width: 640px) {
+    .app { flex-direction: column; }
+    .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .sidebar.lead-open { display: none; }
+    .main { flex: 1; overflow-y: auto; }
+    .main.lead-open { display: flex; }
+    .lead-detail { padding: 16px; }
+    .lead-top { flex-direction: column; gap: 12px; }
+    .lead-actions { justify-content: flex-start; }
+    .lead-name-block h1 { font-size: 20px; }
+    .info-grid { grid-template-columns: 1fr 1fr; }
+    .back-btn { display: flex !important; }
+  }
+
+  /* Sidebar */
+  .sidebar-header { padding: 18px 18px 10px; font-weight: 700; font-size: 18px; letter-spacing: -0.3px; display: flex; align-items: center; gap: 8px; }
+  .sidebar-header span { color: var(--accent); }
+  .live-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; margin-left: auto; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .new-lead-btn { margin: 0 12px 10px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius); padding: 11px; font-size: 14px; font-weight: 600; cursor: pointer; width: calc(100% - 24px); transition: background .15s; }
+  .new-lead-btn:hover { background: var(--accent-hover); }
+  .lead-search { margin: 0 12px 8px; }
+  .lead-search input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 13px; outline: none; }
+  .lead-search input::placeholder { color: var(--muted); }
+  .filter-tabs { display: flex; overflow-x: auto; border-bottom: 1px solid var(--border); padding: 0 12px; flex-shrink: 0; }
+  .filter-tab { padding: 8px 10px; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: color .1s, border-color .1s; user-select: none; }
+  .filter-tab:hover { color: var(--text); }
+  .filter-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .filter-tab .tab-count { background: var(--surface2); border-radius: 20px; padding: 1px 6px; font-size: 10px; margin-left: 4px; }
+  .lead-list { overflow-y: auto; flex: 1; }
+  .lead-item { padding: 12px 18px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background .1s; position: relative; }
+  .lead-item:hover { background: var(--surface2); }
+  .lead-item.active { background: var(--surface2); border-left: 3px solid var(--accent); }
+  .lead-item-name { font-weight: 600; font-size: 14px; margin-bottom: 3px; }
+  .lead-item-meta { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; }
+  .lead-item-badge { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 20px; }
+  .badge-new { background: #dbeafe; color: #1d4ed8; }
+  .badge-called { background: #dcfce7; color: #15803d; }
+  .badge-followup { background: #fef3c7; color: #b45309; }
+  .badge-closed { background: #fee2e2; color: #b91c1c; }
+  .notif-dot { width: 8px; height: 8px; background: var(--red); border-radius: 50%; position: absolute; top: 12px; right: 14px; }
+
+  /* Main */
+  .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--muted); gap: 10px; }
+  .empty-state svg { opacity: .3; }
+
+  /* Lead Detail */
+  .lead-detail { flex: 1; padding: 28px 32px; }
+  .lead-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+  .lead-name-block h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+  .lead-name-block .lead-sub { color: var(--muted); font-size: 14px; margin-top: 4px; }
+  .lead-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn { border: none; border-radius: 8px; padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity .15s; }
+  .btn:hover { opacity: .85; }
+  .btn-call { background: var(--green); color: #fff; }
+  .btn-email { background: var(--accent); color: #fff; }
+  .btn-close { background: var(--red); color: #fff; }
+  .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .status-pill { display: inline-block; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-left: 10px; vertical-align: middle; }
+
+  /* Info grid */
+  .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .info-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+  .info-card label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 5px; }
+  .info-card .val { font-size: 15px; font-weight: 600; }
+  .info-card select { background: none; border: none; color: var(--text); font-size: 15px; font-weight: 600; width: 100%; outline: none; font-family: inherit; }
+  .info-card select option { background: #fff; }
+
+  /* Sections */
+  .section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 20px; overflow: hidden; }
+  .section-title { padding: 14px 18px; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); border-bottom: 1px solid var(--border); }
+  .section-body { padding: 16px 18px; }
+  .note-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; color: var(--text); font-size: 14px; font-family: inherit; resize: vertical; min-height: 90px; outline: none; }
+  .note-input:focus { border-color: var(--accent); }
+  .save-note-btn { margin-top: 10px; background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 9px 20px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .note-entry { padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .note-entry:last-child { border-bottom: none; }
+  .note-entry-meta { font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+  .note-entry-text { font-size: 14px; line-height: 1.5; }
+  .call-entry { padding: 10px 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; }
+  .call-entry:last-child { border-bottom: none; }
+  .call-entry-time { font-size: 12px; color: var(--muted); }
+
+  /* Email */
+  .email-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 14px; }
+  .email-field { margin-bottom: 10px; font-size: 13px; }
+  .email-field span { color: var(--muted); margin-right: 6px; }
+  .email-body-preview { font-size: 14px; color: #374151; line-height: 1.6; white-space: pre-wrap; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 8px; }
+  .send-email-btn { background: #ea4335; color: #fff; border: none; border-radius: 8px; padding: 11px 22px; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; text-decoration: none; }
+  .send-email-btn:hover { opacity: .85; }
+
+  /* Banners */
+  .followup-banner { background: #fffbeb; border: 1px solid #fcd34d; border-radius: var(--radius); padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
+  .followup-banner p { color: #92400e; font-weight: 600; font-size: 14px; }
+  .followup-banner button { background: #f59e0b; color: #fff; border: none; border-radius: 6px; padding: 7px 14px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .notif-bar { background: #fef2f2; border-bottom: 1px solid #fecaca; padding: 10px 32px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .notif-bar p { color: #b91c1c; font-size: 13px; font-weight: 600; }
+  .notif-bar .notif-item { background: #fff; border: 1px solid #fca5a5; border-radius: 6px; padding: 5px 12px; font-size: 12px; color: #dc2626; cursor: pointer; }
+  .notif-bar .notif-item:hover { background: #fee2e2; }
+
+  /* Modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 100; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 28px; width: 440px; max-width: 95vw; }
+  .modal h2 { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .form-group input, .form-group select { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text); font-size: 14px; font-family: inherit; outline: none; }
+  .form-group input:focus { border-color: var(--accent); }
+  .form-group select option { background: #fff; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; }
+  .hidden { display: none !important; }
+  .back-btn { display: none; align-items: center; gap: 6px; background: none; border: none; color: var(--accent); font-size: 14px; font-weight: 600; cursor: pointer; padding: 12px 16px 4px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sidebar">
+    <div class="sidebar-header">🏠 <span>Lee's Leads</span> <span class="live-dot" title="Live — syncing with server"></span></div>
+    <button class="new-lead-btn" onclick="openNewLeadModal()">+ New Lead</button>
+    <div class="lead-search"><input type="text" placeholder="Search leads…" oninput="filterLeads(this.value)" id="searchInput"></div>
+    <div class="filter-tabs" id="filterTabs"></div>
+    <div class="lead-list" id="leadList"></div>
+  </div>
+  <div class="main" id="mainPane">
+    <div class="empty-state" id="emptyState">
+      <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <p>Select a lead or create one</p>
+    </div>
+    <div id="leadDetail" class="hidden"></div>
+  </div>
+</div>
+
+<!-- New Lead Modal -->
+<div class="modal-overlay hidden" id="newLeadModal">
+  <div class="modal">
+    <h2>New Lead</h2>
+    <div class="form-group"><label>Full Name *</label><input id="nl-name" placeholder="John Smith" /></div>
+    <div class="form-group"><label>Phone</label><input id="nl-phone" placeholder="(555) 000-0000" type="tel" /></div>
+    <div class="form-group"><label>Email</label><input id="nl-email" placeholder="john@email.com" type="email" /></div>
+    <div class="form-group"><label>Property</label><input id="nl-property" placeholder="3BR in Boca Raton…" /></div>
+    <div class="form-group"><label>Source</label>
+      <select id="nl-source">
+        <option>Zillow</option><option>Referral</option><option>Cold Call</option><option>Instantly</option><option>Website</option><option>Other</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeNewLeadModal()">Cancel</button>
+      <button class="btn btn-call" onclick="createLead()">Create Lead</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:3000/api';
+let leads = [];
+let activeLead = null;
+let activeTab = 'all';
+
+// ── Fetch leads from server ──────────────────────────────────────────────────
+async function fetchLeads() {
+  try {
+    const res = await fetch(`${API}/leads`);
+    const fresh = await res.json();
+    const prevCount = leads.length;
+    leads = fresh;
+    renderFilterTabs();
+    renderLeadList(document.getElementById('searchInput').value);
+    renderNotifBar();
+    // Re-render active lead only if user isn't typing a note
+    if (activeLead) {
+      const noteInput = document.getElementById('noteInput');
+      const isTyping = noteInput && document.activeElement === noteInput && noteInput.value.trim() !== '';
+      if (!isTyping) {
+        const l = getLead(activeLead);
+        if (l) renderDetail(l);
+      }
+    }
+    // Flash if new leads arrived
+    if (fresh.length > prevCount && prevCount > 0) {
+      document.querySelector('.live-dot').style.background = '#f59e0b';
+      setTimeout(() => document.querySelector('.live-dot').style.background = '', 2000);
+    }
+  } catch {
+    // Server not reachable — quiet fail
+  }
+}
+
+async function apiPatch(id, data) {
+  const res = await fetch(`${API}/leads/${id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+  return res.json();
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function getLead(id) { return leads.find(l => l.id === id); }
+
+function getDueFollowUps() {
+  const now = Date.now();
+  return leads.filter(l => l.followUpAt && l.followUpAt <= now && l.status !== 'closed');
+}
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+function renderNotifBar() {
+  const due = getDueFollowUps();
+  const existing = document.getElementById('notifBar');
+  if (existing) existing.remove();
+  if (!due.length) return;
+  const bar = document.createElement('div');
+  bar.className = 'notif-bar'; bar.id = 'notifBar';
+  bar.innerHTML = `<p>🔔 Follow-up due:</p>` + due.map(l => `<span class="notif-item" onclick="openLead('${l.id}')">${l.name}</span>`).join('');
+  document.querySelector('.main').prepend(bar);
+}
+
+// ── Filter Tabs ───────────────────────────────────────────────────────────────
+function renderFilterTabs() {
+  const tabs = [{id:'all',label:'All'},{id:'new',label:'New'},{id:'called',label:'Called'},{id:'followup',label:'Follow-Up'},{id:'closed',label:'Closed'}];
+  const counts = {};
+  leads.forEach(l => { counts[l.status] = (counts[l.status]||0) + 1; });
+  document.getElementById('filterTabs').innerHTML = tabs.map(t => {
+    const count = t.id === 'all' ? leads.length : (counts[t.id]||0);
+    return `<div class="filter-tab ${activeTab===t.id?'active':''}" onclick="setTab('${t.id}')">${t.label}<span class="tab-count">${count}</span></div>`;
+  }).join('');
+}
+
+function setTab(tab) { activeTab = tab; renderFilterTabs(); renderLeadList(document.getElementById('searchInput').value); }
+
+// ── Lead List ─────────────────────────────────────────────────────────────────
+function renderLeadList(filter = '') {
+  const list = document.getElementById('leadList');
+  const filtered = leads.filter(l => {
+    const matchTab = activeTab === 'all' || l.status === activeTab;
+    const matchSearch = l.name.toLowerCase().includes(filter.toLowerCase()) || (l.email||'').includes(filter) || (l.phone||'').includes(filter);
+    return matchTab && matchSearch;
+  });
+  list.innerHTML = !filtered.length
+    ? `<div style="padding:20px;color:var(--muted);font-size:13px;text-align:center">No leads</div>`
+    : filtered.map(l => {
+        const due = l.followUpAt && l.followUpAt <= Date.now() && l.status !== 'closed';
+        return `<div class="lead-item ${activeLead===l.id?'active':''}" onclick="openLead('${l.id}')">
+          ${due ? '<div class="notif-dot"></div>' : ''}
+          <div class="lead-item-name">${l.name}</div>
+          <div class="lead-item-meta"><span>${l.phone||l.email||'—'}</span><span class="lead-item-badge badge-${l.status}">${l.status}</span></div>
+        </div>`;
+      }).join('');
+}
+
+function filterLeads(v) { renderLeadList(v); }
+
+// ── Render Notes ─────────────────────────────────────────────────────────────
+function renderNotes(l) {
+  if (!l.notes || !l.notes.length) return '<div style="color:var(--muted);font-size:13px">No notes yet.</div>';
+  return l.notes.slice().reverse().map((n, i, arr) => {
+    const origIdx = arr.length - 1 - i;
+    const isReply = origIdx === 0 && l.source === 'Instantly';
+    const label = isReply
+      ? '<span style="background:#dbeafe;color:#1d4ed8;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-right:6px;text-transform:uppercase;letter-spacing:.4px">Lead Reply</span>'
+      : '';
+    const time = new Date(n.at).toLocaleString('en-US', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    return '<div class="note-entry">'
+      + '<div class="note-entry-meta" style="display:flex;align-items:center;justify-content:space-between">'
+      + '<span>' + label + time + '</span>'
+      + '<span style="display:flex;gap:8px">'
+      + '<button onclick="editNote(\'' + l.id + '\',' + origIdx + ')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0">Edit</button>'
+      + '<button onclick="deleteNote(\'' + l.id + '\',' + origIdx + ')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:0">Delete</button>'
+      + '</span></div>'
+      + '<div class="note-entry-text">' + n.text + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+// ── Open Lead ─────────────────────────────────────────────────────────────────
+function openLead(id) {
+  activeLead = id;
+  document.getElementById('emptyState').classList.add('hidden');
+  document.getElementById('leadDetail').classList.remove('hidden');
+  renderLeadList(document.getElementById('searchInput').value);
+  renderDetail(getLead(id));
+  // Mobile: hide sidebar, show main
+  if (window.innerWidth <= 640) {
+    document.querySelector('.sidebar').classList.add('lead-open');
+    document.querySelector('.main').classList.add('lead-open');
+    window.scrollTo(0, 0);
+  }
+}
+
+function goBack() {
+  activeLead = null;
+  document.querySelector('.sidebar').classList.remove('lead-open');
+  document.querySelector('.main').classList.remove('lead-open');
+  document.getElementById('leadDetail').classList.add('hidden');
+  document.getElementById('emptyState').classList.remove('hidden');
+}
+
+function renderDetail(l) {
+  if (!l) return;
+  const due = l.followUpAt && l.followUpAt <= Date.now() && l.status !== 'closed';
+  const followUpStr = l.followUpAt ? new Date(l.followUpAt).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : null;
+  document.getElementById('leadDetail').innerHTML = `
+    <button class="back-btn" onclick="goBack()">← All Leads</button>
+    ${due ? `<div class="followup-banner"><p>🔔 Follow-up due for ${l.name}!</p><button onclick="markFollowUpDone('${l.id}')">Mark Done</button></div>` : ''}
+    <div class="lead-detail">
+      <div class="lead-top">
+        <div class="lead-name-block">
+          <h1>${l.name}<span class="status-pill badge-${l.status}">${l.status.toUpperCase()}</span></h1>
+          <div class="lead-sub">Added ${new Date(l.createdAt).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})} · ${l.source}</div>
+        </div>
+        <div class="lead-actions">
+          <button class="btn btn-call" onclick="logCall('${l.id}')">📞 Log Call</button>
+          <button class="btn btn-email" onclick="showEmailPanel('${l.id}')">✉️ Follow-Up Email</button>
+          <button class="btn btn-close" onclick="toggleClose('${l.id}')">${l.status==='closed'?'Reopen':'Close'} Lead</button>
+        </div>
+      </div>
+      <div class="info-grid">
+        <div class="info-card"><label>Phone</label><div class="val"><a href="tel:${l.phone}" style="color:var(--text);text-decoration:none">${l.phone||'—'}</a></div></div>
+        <div class="info-card"><label>Email</label><div class="val" style="font-size:13px">${l.email||'—'}</div></div>
+        <div class="info-card"><label>Property</label><div class="val" style="font-size:13px">${l.property||'—'}</div></div>
+        <div class="info-card"><label>Source</label><div class="val">${l.source}</div></div>
+        <div class="info-card"><label>Status</label>
+          <select onchange="changeStatus('${l.id}',this.value)">
+            ${['new','called','followup','closed'].map(s=>`<option ${l.status===s?'selected':''} value="${s}">${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('')}
+          </select>
+        </div>
+        ${followUpStr ? `<div class="info-card"><label>Follow-Up</label><div class="val" style="font-size:13px;color:${due?'#d97706':'inherit'}">${followUpStr}</div></div>` : ''}
+      </div>
+      <div class="section">
+        <div class="section-title">📞 Call Log</div>
+        <div class="section-body">
+          ${l.calls&&l.calls.length ? l.calls.map(c=>`<div class="call-entry"><div>${c.note||'Call logged'}</div><div class="call-entry-time">${new Date(c.at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div></div>`).join('') : '<div style="color:var(--muted);font-size:13px">No calls yet.</div>'}
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-title">📝 Notes</div>
+        <div class="section-body">
+          <textarea class="note-input" id="noteInput" placeholder="Write a note…"></textarea>
+          <button class="save-note-btn" onclick="saveNote('${l.id}')">Save Note</button>
+          <div style="margin-top:16px">
+            ${renderNotes(l)}
+          </div>
+        </div>
+      </div>
+      <div class="section hidden" id="emailSection">
+        <div class="section-title">✉️ Follow-Up Email</div>
+        <div class="section-body" id="emailBody"></div>
+      </div>
+    </div>`;
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+async function logCall(id) {
+  const l = getLead(id);
+  const note = prompt(`Call note for ${l.name}:\n(Leave blank to just log the time)`);
+  if (note === null) return;
+  const calls = [...(l.calls||[]), { at: Date.now(), note: note||'Call logged' }];
+  const followUpAt = Date.now() + 2 * 24 * 60 * 60 * 1000;
+  const updated = await apiPatch(id, { calls, status: 'called', followUpAt });
+  Object.assign(l, updated);
+  await fetchLeads();
+  renderDetail(getLead(id));
+  if (confirm(`Call logged! Send follow-up email to ${l.name} now?`)) showEmailPanel(id);
+}
+
+async function saveNote(id) {
+  const text = document.getElementById('noteInput').value.trim();
+  if (!text) return;
+  const l = getLead(id);
+  const notes = [...(l.notes||[]), { at: Date.now(), text }];
+  const updated = await apiPatch(id, { notes });
+  Object.assign(l, updated);
+  renderDetail(getLead(id));
+}
+
+async function changeStatus(id, status) {
+  const updated = await apiPatch(id, { status });
+  const l = getLead(id);
+  Object.assign(l, updated);
+  renderFilterTabs();
+  renderLeadList(document.getElementById('searchInput').value);
+  renderDetail(getLead(id));
+}
+
+async function toggleClose(id) {
+  const l = getLead(id);
+  changeStatus(id, l.status === 'closed' ? 'new' : 'closed');
+}
+
+async function markFollowUpDone(id) {
+  const updated = await apiPatch(id, { followUpAt: null, status: 'followup' });
+  const l = getLead(id);
+  Object.assign(l, updated);
+  renderFilterTabs();
+  renderLeadList(document.getElementById('searchInput').value);
+  renderNotifBar();
+  renderDetail(getLead(id));
+}
+
+// ── Email ─────────────────────────────────────────────────────────────────────
+function generateEmail(l) {
+  const firstName = l.name.split(' ')[0];
+  const lastCall = l.calls&&l.calls.length ? l.calls[l.calls.length-1] : null;
+  const callNote = lastCall&&lastCall.note&&lastCall.note!=='Call logged' ? `\n\nAs we discussed, ${lastCall.note.charAt(0).toLowerCase()+lastCall.note.slice(1)}` : '';
+  return {
+    to: l.email||'',
+    subject: `Following up – ${l.property||'your real estate search'}`,
+    body: `Hi ${firstName},\n\nIt was great connecting with you! I wanted to follow up on our conversation about ${l.property||'your property search'}.${callNote}\n\nI'd love to schedule a time to go over some options that would be a great fit for you. Let me know what works best, or feel free to call me directly.\n\nLooking forward to helping you find the perfect property!\n\nBest,\nLee`
+  };
+}
+
+function showEmailPanel(id) {
+  const l = getLead(id);
+  const emailSection = document.getElementById('emailSection');
+  if (!emailSection) return;
+  emailSection.classList.remove('hidden');
+  emailSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const email = generateEmail(l);
+  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email.to)}&su=${encodeURIComponent(email.subject)}&body=${encodeURIComponent(email.body)}`;
+  document.getElementById('emailBody').innerHTML = `
+    <div class="email-box">
+      <div class="email-field"><span>To:</span>${email.to||'<span style="color:var(--red)">No email on file</span>'}</div>
+      <div class="email-field"><span>Subject:</span>${email.subject}</div>
+      <div class="email-body-preview">${email.body}</div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <a href="${gmailUrl}" target="_blank" style="text-decoration:none">
+        <button class="send-email-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+          Open in Gmail
+        </button>
+      </a>
+      <button class="btn btn-ghost" onclick="navigator.clipboard.writeText(\`${email.body.replace(/`/g,'\\`')}\`).then(()=>alert('Copied!'))">Copy Text</button>
+    </div>
+    <p style="color:var(--muted);font-size:12px;margin-top:10px">Gmail opens with the email pre-filled — just review and send.</p>`;
+  if (!l.emailSentAt) apiPatch(id, { emailSentAt: Date.now() });
+}
+
+// ── Edit / Delete Notes ───────────────────────────────────────────────────────
+async function editNote(leadId, idx) {
+  const l = getLead(leadId);
+  const note = l.notes[idx];
+  const newText = prompt('Edit note:', note.text);
+  if (newText === null || newText.trim() === '') return;
+  l.notes[idx].text = newText.trim();
+  await apiPatch(leadId, { notes: l.notes });
+  renderDetail(getLead(leadId));
+}
+
+async function deleteNote(leadId, idx) {
+  if (!confirm('Delete this note?')) return;
+  const l = getLead(leadId);
+  l.notes.splice(idx, 1);
+  await apiPatch(leadId, { notes: l.notes });
+  renderDetail(getLead(leadId));
+}
+
+// ── New Lead Modal ─────────────────────────────────────────────────────────────
+function openNewLeadModal() { document.getElementById('newLeadModal').classList.remove('hidden'); setTimeout(()=>document.getElementById('nl-name').focus(),50); }
+function closeNewLeadModal() {
+  document.getElementById('newLeadModal').classList.add('hidden');
+  ['nl-name','nl-phone','nl-email','nl-property'].forEach(id=>document.getElementById(id).value='');
+}
+async function createLead() {
+  const name = document.getElementById('nl-name').value.trim();
+  if (!name) { alert('Name required.'); return; }
+  const res = await fetch(`${API}/leads`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      name,
+      phone: document.getElementById('nl-phone').value.trim(),
+      email: document.getElementById('nl-email').value.trim(),
+      property: document.getElementById('nl-property').value.trim(),
+      source: document.getElementById('nl-source').value,
+    })
+  });
+  const lead = await res.json();
+  closeNewLeadModal();
+  await fetchLeads();
+  openLead(lead.id);
+}
+
+// ── Keyboard ──────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key==='Escape') closeNewLeadModal();
+  if ((e.metaKey||e.ctrlKey) && e.key==='n') { e.preventDefault(); openNewLeadModal(); }
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+fetchLeads();
+// Poll server every 15 seconds for new leads from Instantly
+setInterval(fetchLeads, 15000);
+</script>
+</body>
+</html>
