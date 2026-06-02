@@ -24,7 +24,7 @@ async function initDB() {
 }
 
 async function readLeads() {
-  const r = await pool.query('SELECT data FROM leads ORDER BY (data->>'createdAt')::bigint DESC');
+  const r = await pool.query('SELECT data FROM leads ORDER BY COALESCE((data->>'createdAt')::bigint, 0) DESC');
   return r.rows.map(r => r.data);
 }
 
@@ -156,7 +156,7 @@ async function pollInstantly() {
       added++;
       console.log('[Poll] Added: ' + name + ' <' + email + '>');
     }
-    if (added) console.log('[Poll] Done ÃÂ¢ÃÂÃÂ ' + added + ' new lead(s)');
+    if (added) console.log('[Poll] Done ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ ' + added + ' new lead(s)');
   } catch (e) {
     console.error('[Poll] Error:', e.message);
   }
@@ -171,7 +171,7 @@ app.delete('/api/leads/:id', async (req, res) => {
 });
 
 
-// ââ Fix email-prefix names via Instantly âââââââââââââââââââââââââââââââââââââ
+// Ã¢ÂÂÃ¢ÂÂ Fix email-prefix names via Instantly Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 app.post('/api/fix-names', async (req, res) => {
   try {
     const leads = await readLeads();
@@ -197,7 +197,7 @@ app.post('/api/fix-names', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// ââ Delete lead âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// Ã¢ÂÂÃ¢ÂÂ Delete lead Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 app.delete('/api/leads/:id', async (req, res) => {
   try {
     await pool.query('DELETE FROM leads WHERE id=$1', [req.params.id]);
