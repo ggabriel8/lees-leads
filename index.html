@@ -87,6 +87,9 @@
   .info-card .val { font-size: 15px; font-weight: 600; }
   .info-card select { background: none; border: none; color: var(--text); font-size: 15px; font-weight: 600; width: 100%; outline: none; font-family: inherit; }
   .info-card select option { background: #fff; }
+  .info-card input.edit-field { background: none; border: none; color: var(--text); font-size: 15px; font-weight: 600; width: 100%; outline: none; font-family: inherit; padding: 0; border-bottom: 1px solid transparent; transition: border-color .15s; }
+  .info-card input.edit-field:hover { border-bottom-color: var(--border); }
+  .info-card input.edit-field:focus { border-bottom-color: var(--accent); }
 
   /* Sections */
   .section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 20px; overflow: hidden; }
@@ -347,13 +350,14 @@ function renderDetail(l) {
         <div class="lead-actions">
           <a href="tel:${l.phone}" style="text-decoration:none"><button class="btn btn-call">📞 Call</button></a>
           <button class="btn btn-call" onclick="logCall('${l.id}')" style="background:#0f7b3e">Log Call</button>
+          <button class="btn btn-email" onclick="logEmail('${l.id}')" style="background:#1e40af">Log Email</button>
           <button class="btn btn-email" onclick="showEmailPanel('${l.id}')">✉️ Follow-Up Email</button>
           <button class="btn btn-close" onclick="toggleClose('${l.id}')">${l.status==='closed'?'Reopen':'Close'} Lead</button>
         </div>
       </div>
       <div class="info-grid">
-        <div class="info-card"><label>Phone</label><div class="val"><a href="tel:${l.phone}" style="color:var(--text);text-decoration:none">${l.phone||'—'}</a></div></div>
-        <div class="info-card"><label>Email</label><div class="val" style="font-size:13px">${l.email||'—'}</div></div>
+        <div class="info-card"><label>Phone</label><input class="edit-field" type="tel" value="${l.phone||''}" placeholder="—" onchange="saveField('${l.id}','phone',this.value)"></div>
+        <div class="info-card"><label>Email</label><input class="edit-field" type="email" value="${l.email||''}" placeholder="—" style="font-size:13px" onchange="saveField('${l.id}','email',this.value)"></div>
         <div class="info-card"><label>Property</label><div class="val" style="font-size:13px">${l.property||'—'}</div></div>
         <div class="info-card"><label>Source</label><div class="val">${l.source}</div></div>
         <div class="info-card"><label>Status</label>
@@ -367,6 +371,12 @@ function renderDetail(l) {
         <div class="section-title">📞 Call Log</div>
         <div class="section-body">
           ${l.calls&&l.calls.length ? l.calls.map(c=>`<div class="call-entry"><div>${c.note||'Call logged'}</div><div class="call-entry-time">${new Date(c.at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div></div>`).join('') : '<div style="color:var(--muted);font-size:13px">No calls yet.</div>'}
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-title">✉️ Email Log</div>
+        <div class="section-body">
+          ${l.emails&&l.emails.length ? l.emails.map(c=>`<div class="call-entry"><div>${c.note||'Email logged'}</div><div class="call-entry-time">${new Date(c.at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div></div>`).join('') : '<div style="color:var(--muted);font-size:13px">No emails yet.</div>'}
         </div>
       </div>
       <div class="section">
@@ -400,6 +410,18 @@ async function logCall(id) {
   if (confirm(`Call logged! Send follow-up email to ${l.name} now?`)) showEmailPanel(id);
 }
 
+async function logEmail(id) {
+  const l = getLead(id);
+  const note = prompt(`Email note for ${l.name}:\n(Leave blank to just log the time)`);
+  if (note === null) return;
+  const emails = [...(l.emails||[]), { at: Date.now(), note: note||'Email logged' }];
+  const followUpAt = Date.now() + 2 * 24 * 60 * 60 * 1000;
+  const updated = await apiPatch(id, { emails, status: 'called', followUpAt, emailSentAt: Date.now() });
+  Object.assign(l, updated);
+  await fetchLeads();
+  renderDetail(getLead(id));
+}
+
 async function saveNote(id) {
   const text = document.getElementById('noteInput').value.trim();
   if (!text) return;
@@ -408,6 +430,17 @@ async function saveNote(id) {
   const updated = await apiPatch(id, { notes });
   Object.assign(l, updated);
   renderDetail(getLead(id));
+}
+
+async function saveField(id, field, value) {
+  const v = value.trim();
+  const l = getLead(id);
+  if ((l[field]||'') === v) return;
+  const updated = await apiPatch(id, { [field]: v });
+  Object.assign(l, updated);
+  renderLeadList(document.getElementById('searchInput').value);
+  const dot = document.querySelector('.live-dot');
+  if (dot) { dot.style.background = '#16a34a'; setTimeout(() => dot.style.background = '', 1200); }
 }
 
 async function changeStatus(id, status) {
